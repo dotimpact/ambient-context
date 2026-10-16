@@ -97,12 +97,15 @@ fn figure() -> &'static Regex {
     FIGURE.get_or_init(|| Regex::new(r"\b\d{3,}\b|\b[0-9a-f]{7,40}\b").unwrap())
 }
 
-/// Whole-word containment, so `303` is not satisfied by `3030`.
+/// Whole-word containment, so `303` is not satisfied by `3030`. Figures are
+/// ASCII, so only an ASCII letter or digit extends one: `#156の` still
+/// carries `156`.
 fn appears_in(evidence: &str, token: &str) -> bool {
     evidence.match_indices(token).any(|(at, _)| {
         let before = evidence[..at].chars().next_back();
         let after = evidence[at + token.len()..].chars().next();
-        !before.is_some_and(|c| c.is_alphanumeric()) && !after.is_some_and(|c| c.is_alphanumeric())
+        !before.is_some_and(|c| c.is_ascii_alphanumeric())
+            && !after.is_some_and(|c| c.is_ascii_alphanumeric())
     })
 }
 
@@ -426,6 +429,14 @@ mod tests {
     fn a_figure_the_evidence_carries_is_accepted() {
         let text = good().replace("the thing.", "the thing, 303 tests green.");
         assert_eq!(check(&text), Ok(()));
+    }
+
+    #[test]
+    fn a_figure_followed_by_cjk_in_the_evidence_is_carried() {
+        assert!(appears_in("Issue #156の確認", "156"));
+        assert!(appears_in("#156に", "156"));
+        assert!(appears_in("第156号", "156"));
+        assert!(!appears_in("Issue #1560の確認", "156"));
     }
 
     #[test]
