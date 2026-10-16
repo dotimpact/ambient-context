@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Summaries
+
+- **A number followed by Chinese or Japanese text now counts as
+  evidence.** The figure check treated any letter after a number as part
+  of a longer word, and kana and Han ideographs are letters, so evidence
+  reading `Issue #156の確認` did not support a summary's `#156` and the
+  summary was rejected as `UnsupportedFigure`. Only an ASCII letter or
+  digit now extends a figure, so `1560` still does not support `156`.
+
 ### Ingest
 
 - **An empty commitments subsection has a stated format.** The messages
