@@ -592,6 +592,18 @@ mod tests {
     }
 
     #[test]
+    fn an_empty_subsection_is_a_bare_line_not_a_list_item() {
+        let text = GOOD_MESSAGES.replace(
+            "## Owed to me\nNothing evident.",
+            "## Owed to me\n- Nothing evident.",
+        );
+        assert!(matches!(
+            validate(Call::Messages, &split_output(&text), &spans()).unwrap_err(),
+            Invalid::NoCitation { file, .. } if file == "commitments.md"
+        ));
+    }
+
+    #[test]
     fn a_citation_outside_the_timeline_is_rejected() {
         let text = GOOD_MESSAGES.replace("09:48-09:59", "14:00-14:30");
         assert!(matches!(
