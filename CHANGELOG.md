@@ -11,6 +11,16 @@
   summary was rejected as `UnsupportedFigure`. Only an ASCII letter or
   digit now extends a figure, so `1560` still does not support `156`.
 
+### Ingest
+
+- **An empty commitments subsection has a stated format.** The messages
+  prompt now says that when one of `I agreed to` and `Owed to me` has an
+  entry and the other does not, the empty one holds a bare
+  `Nothing evident.` line. Models had been writing `- Nothing evident.`,
+  which validation rejects as an uncited line, so the whole messages
+  ingest failed. Customised messages prompts keep their own text and need
+  the same rule added by hand.
+
 ## 1.1.4
 
 Keeps Chinese and Japanese text, never reads Apple Passwords, stops

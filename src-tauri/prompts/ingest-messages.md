@@ -42,6 +42,9 @@ you left out.>
 
 - A file with nothing to report is exactly the line `Nothing evident.` and
   nothing else. Both file markers must always appear.
+- In `commitments.md`, keep both headings whenever either has an entry.
+  A subsection with nothing under it holds the line `Nothing evident.`
+  on its own, with no list marker and no time range.
 - Every non-heading line carries a time range `HH:MM-HH:MM` taken from a
   heading in the input or the timeline. A claim you cannot place in time
   is a claim to leave out.
