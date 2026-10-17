@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.1.5
+
+Accepts a figure followed by Chinese or Japanese text as evidence, and
+stops failing messages ingest over an empty commitments subsection.
 
 ### Summaries
 
