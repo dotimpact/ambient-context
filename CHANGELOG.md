@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Ingest
+
+- **A reference on a line of its own no longer fails the ingest.** The
+  input writes `url:` and `file:` references as lines of their own, and
+  models sometimes copied that shape into `people.md` or `threads.md`,
+  putting the reference under the line it supports. That line has no time
+  range, so validation rejected the whole call with "a line carries no
+  time range". Such a reference is now joined onto the cited line above
+  it before validation; one with nothing cited above it is still
+  rejected. The messages and apps prompts now also say the reference
+  goes at the end of the line. Customised prompts keep their own text,
+  and the joining applies to them too.
+
 ## 1.1.5
 
 Accepts a figure followed by Chinese or Japanese text as evidence, and

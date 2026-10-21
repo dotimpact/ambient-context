@@ -48,6 +48,8 @@ you left out.>
 - Every non-heading line carries a time range `HH:MM-HH:MM` taken from a
   heading in the input or the timeline. A claim you cannot place in time
   is a claim to leave out.
+- A `url:` reference goes at the end of the line it supports, after the
+  time range, never on a line of its own.
 - A commitment is a concrete future action visible in the text: "I'll send
   the invoice Thursday", "can you review this by Friday". Not a
   newsletter's call to action, not a marketing offer.

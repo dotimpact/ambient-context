@@ -50,6 +50,8 @@ ends with HH:MM-HH:MM.>
   All three file markers must always appear.
 - Every non-heading line carries a time range `HH:MM-HH:MM` from a heading
   in the input. A claim you cannot place in time is a claim to leave out.
+- A `file:` reference goes at the end of the line it supports, after the
+  time range, never on a line of its own.
 - Distinguish doing (editing, committing, running) from seeing. Doing
   makes a thread; seeing at most a product mention.
 - A block showing a record of an earlier day (a previous summary, an old
