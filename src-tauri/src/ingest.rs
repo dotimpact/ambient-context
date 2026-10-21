@@ -92,7 +92,7 @@ pub fn split_output(text: &str) -> Split {
 
     let flush = |current: &mut Option<(String, String)>, files: &mut Vec<(String, String)>| {
         if let Some((name, body)) = current.take() {
-            files.push((name, body.trim().to_string()));
+            files.push((name, fold_references(body.trim())));
         }
     };
 
@@ -128,6 +128,35 @@ pub fn split_output(text: &str) -> Split {
             .map(|r| r.trim().to_string())
             .filter(|r| !r.is_empty()),
     }
+}
+
+/// A `url:` or `file:` reference the model put on a line of its own, right
+/// under the cited line it belongs to, is joined onto that line. The
+/// prompts ask for the reference at the end of the line, but the input
+/// writes references as lines of their own and models copy that shape;
+/// left alone, the reference line has no time range and fails the whole
+/// call. A reference line with nothing cited above it is left as it is,
+/// so validation still rejects it.
+fn fold_references(body: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for line in body.lines() {
+        let t = line.trim();
+        let reference = t.strip_prefix("- ").unwrap_or(t);
+        let is_reference = (reference.starts_with("url: ") || reference.starts_with("file: "))
+            && !citation().is_match(reference);
+        if is_reference {
+            if let Some(previous) = out.last_mut() {
+                let p = previous.trim();
+                if !p.is_empty() && !p.starts_with("## ") && citation().is_match(p) {
+                    previous.push(' ');
+                    previous.push_str(reference);
+                    continue;
+                }
+            }
+        }
+        out.push(line.to_string());
+    }
+    out.join("\n")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -588,6 +617,41 @@ mod tests {
         assert!(matches!(
             validate(Call::Messages, &split_output(&text), &spans()).unwrap_err(),
             Invalid::NoCitation { file, .. } if file == "people.md"
+        ));
+    }
+
+    #[test]
+    fn a_reference_on_its_own_line_is_joined_to_the_cited_line_above() {
+        let text = GOOD_MESSAGES.replace(
+            "09:48-09:59 url: https://app.slack.com/x\n",
+            "09:48-09:59\nurl: https://app.slack.com/client/T02BJ9H8N/C0AQP8BNDBL\n",
+        );
+        let split = split_output(&text);
+        assert_eq!(
+            split.files[0].1,
+            "## Dan\nAsked for the notch state by Thursday in #empty-build 09:48-09:59 url: https://app.slack.com/client/T02BJ9H8N/C0AQP8BNDBL"
+        );
+        validate(Call::Messages, &split, &spans()).unwrap();
+        let listed = GOOD_MESSAGES.replace(
+            " · 09:48-09:59 · https://app.slack.com/x\n",
+            " · 09:48-09:59\n- file: /Users/me/notes.md\n",
+        );
+        let split = split_output(&listed);
+        assert!(split.files[1]
+            .1
+            .contains("with Dan · 09:48-09:59 file: /Users/me/notes.md\n"));
+        validate(Call::Messages, &split, &spans()).unwrap();
+    }
+
+    #[test]
+    fn a_reference_with_nothing_cited_above_it_is_still_rejected() {
+        let text = GOOD_MESSAGES.replace(
+            "## Dan\n",
+            "## Dan\nurl: https://app.slack.com/client/T02BJ9H8N/C0AQP8BNDBL\n",
+        );
+        assert!(matches!(
+            validate(Call::Messages, &split_output(&text), &spans()).unwrap_err(),
+            Invalid::NoCitation { file, line } if file == "people.md" && line.starts_with("url: ")
         ));
     }
 
