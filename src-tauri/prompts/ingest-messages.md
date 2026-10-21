@@ -47,7 +47,9 @@ you left out.>
   on its own, with no list marker and no time range.
 - Every non-heading line carries a time range `HH:MM-HH:MM` taken from a
   heading in the input or the timeline. A claim you cannot place in time
-  is a claim to leave out.
+  is a claim to leave out. Write the whole range of the heading,
+  `08:46-08:59`, on the same line. A one-minute heading `08:46-08:46` may be
+  written `08:46`.
 - A `url:` reference goes at the end of the line it supports, after the
   time range, never on a line of its own.
 - A commitment is a concrete future action visible in the text: "I'll send
