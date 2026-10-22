@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Capture
+
+- **More secret shapes are redacted before a line is written.** The
+  password in a URL's `user:password@` part (a database connection string
+  was captured in the clear), GitHub, GitLab, Slack and npm tokens, JWTs,
+  and the header of a PEM private key are now replaced with `[redacted]`.
+  The vendor patterns come from the gitleaks rule set. A key spread over
+  several lines still keeps its body lines, because redaction works one
+  line at a time.
+
 ### Ingest
 
 - **A reference on a line of its own no longer fails the ingest.** The
