@@ -50,6 +50,8 @@ ends with HH:MM-HH:MM.>
   All three file markers must always appear.
 - Every non-heading line carries a time range `HH:MM-HH:MM` from a heading
   in the input. A claim you cannot place in time is a claim to leave out.
+  Write the whole range of the heading, `08:46-08:59`, on the same line as
+  the claim. A one-minute heading `08:46-08:46` may be written `08:46`.
 - A `file:` reference goes at the end of the line it supports, after the
   time range, never on a line of its own.
 - Distinguish doing (editing, committing, running) from seeing. Doing
