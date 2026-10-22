@@ -225,9 +225,14 @@ fn single_time() -> &'static Regex {
 /// their citation, so the last time is the one that counts: an earlier one is
 /// part of what the line says ("approved the 10/19 17:30-18:30 slot").
 fn line_citation(line: &str) -> Option<(String, u32, u32)> {
-    let minutes = |h: &str, m: &str| h.parse::<u32>().unwrap_or(0) * 60 + m.parse::<u32>().unwrap_or(0);
+    let minutes =
+        |h: &str, m: &str| h.parse::<u32>().unwrap_or(0) * 60 + m.parse::<u32>().unwrap_or(0);
     if let Some(c) = citation().captures_iter(line).last() {
-        return Some((c[0].to_string(), minutes(&c[1], &c[2]), minutes(&c[3], &c[4])));
+        return Some((
+            c[0].to_string(),
+            minutes(&c[1], &c[2]),
+            minutes(&c[3], &c[4]),
+        ));
     }
     let c = single_time().captures_iter(line).last()?;
     let at = minutes(&c[1], &c[2]);
