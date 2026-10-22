@@ -25,6 +25,29 @@
   goes at the end of the line. Customised prompts keep their own text,
   and the joining applies to them too.
 
+- **A time citation is read the way the prompt asks for it.** Three
+  readings rejected an otherwise good output, and a rejected call fails the
+  whole day. A range written directly against Japanese text
+  (`と19:16-19:52に`) was not found, because `\b` is Unicode-aware and kana
+  count as word characters. A one-minute heading such as `08:46-08:46` was
+  copied as `08:46` and rejected as having no range; a single time inside a
+  captured block is now accepted as a range of zero length. And a line
+  with several times was checked on its first, so a time that is part of
+  the claim ("approved the 10/19 17:30-18:30 slot", cited `08:24-08:27`)
+  was checked instead of the citation; the last time on the line, where
+  the prompt puts the citation, is the one checked. The ingest prompts now
+  say the same.
+
+- **A time citation is checked against the recorded day, not each block.**
+  A citation had to start and end inside a captured block. The agent
+  summarises an activity that runs all day (a feed, a bot) as one wide
+  range and writes its ends from memory, so an end that landed in a gap
+  between blocks failed the whole day, whatever the range said. The check
+  now asks whether each end falls between the first block's start and the
+  last block's end, which still rejects a time the day never recorded. It
+  covers the summary check too, and the error now reads "outside the
+  recorded day".
+
 ## 1.1.5
 
 Accepts a figure followed by Chinese or Japanese text as evidence, and
