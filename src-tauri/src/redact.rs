@@ -284,14 +284,19 @@ mod tests {
     fn redacts_a_jwt() {
         let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
         let out = redact_line(&format!("Authorization header {jwt}"));
-        assert!(!out.contains("eyJhbGci") && !out.contains("SflKxw"), "{out}");
+        assert!(
+            !out.contains("eyJhbGci") && !out.contains("SflKxw"),
+            "{out}"
+        );
     }
 
     #[test]
     fn redacts_a_private_key_header_and_inline_body() {
         let out = redact_line("-----BEGIN RSA PRIVATE KEY-----");
         assert_eq!(out, "[redacted]");
-        let out = redact_line("-----BEGIN PRIVATE KEY-----MIIEvQIBADANBgkqhkiG9w0BAQEFAASC-----END PRIVATE KEY-----");
+        let out = redact_line(
+            "-----BEGIN PRIVATE KEY-----MIIEvQIBADANBgkqhkiG9w0BAQEFAASC-----END PRIVATE KEY-----",
+        );
         assert!(!out.contains("MIIEvQ"), "{out}");
     }
 
