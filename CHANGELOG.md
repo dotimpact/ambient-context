@@ -14,15 +14,17 @@
 
 ### Ingest
 
-- **A time citation is checked against the recorded day, not each block.**
-  A citation had to start and end inside a captured block. The agent
-  summarises an activity that runs all day (a feed, a bot) as one wide
-  range and writes its ends from memory, so an end that landed in a gap
-  between blocks failed the whole day, whatever the range said. The check
-  now asks whether each end falls between the first block's start and the
-  last block's end, which still rejects a time the day never recorded. It
-  covers the summary check too, and the error now reads "outside the
-  recorded day".
+- **A reference on a line of its own no longer fails the ingest.** The
+  input writes `url:` and `file:` references as lines of their own, and
+  models sometimes copied that shape into `people.md` or `threads.md`,
+  putting the reference under the line it supports. That line has no time
+  range, so validation rejected the whole call with "a line carries no
+  time range". Such a reference is now joined onto the cited line above
+  it before validation; one with nothing cited above it is still
+  rejected. The messages and apps prompts now also say the reference
+  goes at the end of the line. Customised prompts keep their own text,
+  and the joining applies to them too.
+
 - **A time citation is read the way the prompt asks for it.** Three
   readings rejected an otherwise good output, and a rejected call fails the
   whole day. A range written directly against Japanese text
@@ -35,16 +37,16 @@
   was checked instead of the citation; the last time on the line, where
   the prompt puts the citation, is the one checked. The ingest prompts now
   say the same.
-- **A reference on a line of its own no longer fails the ingest.** The
-  input writes `url:` and `file:` references as lines of their own, and
-  models sometimes copied that shape into `people.md` or `threads.md`,
-  putting the reference under the line it supports. That line has no time
-  range, so validation rejected the whole call with "a line carries no
-  time range". Such a reference is now joined onto the cited line above
-  it before validation; one with nothing cited above it is still
-  rejected. The messages and apps prompts now also say the reference
-  goes at the end of the line. Customised prompts keep their own text,
-  and the joining applies to them too.
+
+- **A time citation is checked against the recorded day, not each block.**
+  A citation had to start and end inside a captured block. The agent
+  summarises an activity that runs all day (a feed, a bot) as one wide
+  range and writes its ends from memory, so an end that landed in a gap
+  between blocks failed the whole day, whatever the range said. The check
+  now asks whether each end falls between the first block's start and the
+  last block's end, which still rejects a time the day never recorded. It
+  covers the summary check too, and the error now reads "outside the
+  recorded day".
 
 ## 1.1.5
 
