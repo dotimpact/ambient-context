@@ -38,6 +38,16 @@
   the prompt puts the citation, is the one checked. The ingest prompts now
   say the same.
 
+- **A time with its own date is no longer read as the citation.** A line
+  that reports another day's slot and then cites when it was seen
+  ("the 2026/09/05 14:00-15:00 meeting was moved, read 09:12") was
+  checked on the range, because a range anywhere on the line won over a
+  single time after it, and the day was rejected with "14:00-15:00 is
+  outside the recorded day". The last time on the line is now the citation
+  whether it is a range or a single time, and a time written after a date
+  (`2026/09/05`, `9/5(土)`, `9月5日`, `2026-09-05`) is taken only when
+  the line has no other. The summary check skips dated ranges the same way.
+
 - **A time citation is checked against the recorded day, not each block.**
   A citation had to start and end inside a captured block. The agent
   summarises an activity that runs all day (a feed, a bot) as one wide
