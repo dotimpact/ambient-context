@@ -222,21 +222,40 @@ fn single_time() -> &'static Regex {
 }
 
 /// The citation of a line as `(text, start, end)` minutes. Lines end with
-/// their citation, so the last time is the one that counts: an earlier one is
-/// part of what the line says ("approved the 10/19 17:30-18:30 slot").
+/// their citation, so the last time is the one that counts, range or single:
+/// an earlier one is part of what the line says ("approved the 17:30-18:30
+/// slot 09:12"). A time with its own date ("2026/09/05 14:00-15:00") is
+/// what the line says too, and is taken only when nothing else is there.
 fn line_citation(line: &str) -> Option<(String, u32, u32)> {
     let minutes =
         |h: &str, m: &str| h.parse::<u32>().unwrap_or(0) * 60 + m.parse::<u32>().unwrap_or(0);
-    if let Some(c) = citation().captures_iter(line).last() {
-        return Some((
-            c[0].to_string(),
-            minutes(&c[1], &c[2]),
-            minutes(&c[3], &c[4]),
-        ));
+    let range = citation()
+        .captures_iter(line)
+        .filter(|c| !crate::cite::is_dated(line, c.get(0).unwrap().start()))
+        .last();
+    let range_end = range.as_ref().map_or(0, |c| c.get(0).unwrap().end());
+    let single = single_time()
+        .captures_iter(line)
+        .filter(|c| {
+            let m = c.get(0).unwrap();
+            // Not one of the range's own times, nor inside any other range.
+            m.start() >= range_end
+                && !citation()
+                    .find_iter(line)
+                    .any(|r| r.start() <= m.start() && m.end() <= r.end())
+                && !crate::cite::is_dated(line, m.start())
+        })
+        .last();
+    if let Some(c) = single {
+        let at = minutes(&c[1], &c[2]);
+        return Some((c[0].to_string(), at, at));
     }
-    let c = single_time().captures_iter(line).last()?;
-    let at = minutes(&c[1], &c[2]);
-    Some((c[0].to_string(), at, at))
+    let c = range.or_else(|| citation().captures_iter(line).last())?;
+    Some((
+        c[0].to_string(),
+        minutes(&c[1], &c[2]),
+        minutes(&c[3], &c[4]),
+    ))
 }
 
 pub fn validate(call: Call, split: &Split, spans: &[(u32, u32)]) -> Result<(), Invalid> {
@@ -714,6 +733,33 @@ mod tests {
         let text = GOOD_MESSAGES.replace("09:48-09:59", "booked 14:00-14:30 next week 09:48-09:59");
         validate(Call::Messages, &split_output(&text), &spans()).unwrap();
         let text = GOOD_MESSAGES.replace("09:48-09:59", "booked 09:48-09:59 next week 14:00-14:30");
+        assert!(matches!(
+            validate(Call::Messages, &split_output(&text), &spans()).unwrap_err(),
+            Invalid::CitationOutsideTimeline { .. }
+        ));
+    }
+
+    #[test]
+    fn a_single_time_after_a_range_is_the_citation() {
+        // Another day's slot, then when the mail about it was read.
+        let text = GOOD_MESSAGES.replace(
+            "09:48-09:59",
+            "2026/09/05 14:00-15:00の会議が移動したメールを読んだ 09:48。",
+        );
+        validate(Call::Messages, &split_output(&text), &spans()).unwrap();
+        let text = GOOD_MESSAGES.replace("09:48-09:59", "slot 09:48-09:59 moved, seen 14:00");
+        assert!(matches!(
+            validate(Call::Messages, &split_output(&text), &spans()).unwrap_err(),
+            Invalid::CitationOutsideTimeline { .. }
+        ));
+    }
+
+    #[test]
+    fn a_dated_range_is_not_the_citation() {
+        let text =
+            GOOD_MESSAGES.replace("09:48-09:59", "09:48-09:59、2026/09/05 14:00-15:00に変更");
+        validate(Call::Messages, &split_output(&text), &spans()).unwrap();
+        let text = GOOD_MESSAGES.replace("09:48-09:59", "2026/09/05 14:00-15:00に変更");
         assert!(matches!(
             validate(Call::Messages, &split_output(&text), &spans()).unwrap_err(),
             Invalid::CitationOutsideTimeline { .. }
