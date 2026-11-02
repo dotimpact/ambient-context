@@ -10,6 +10,7 @@ mod jobs;
 mod ledger;
 pub mod mcp;
 mod panic_log;
+mod pause;
 mod prompt;
 mod propose;
 mod prune;
@@ -140,7 +141,10 @@ fn capture_status(state: tauri::State<capture::CaptureState>) -> CaptureStatus {
 fn start_if_enabled(app: tauri::AppHandle) -> CaptureStatus {
     let state = app.state::<capture::CaptureState>().inner().clone();
     let config = settings::load(&app);
+    // A pause is the user saying not now; the permission grant arriving
+    // meanwhile must not cut it short.
     if !state.is_running()
+        && !pause::is_paused(&app)
         && config.enabled
         && config.folder.is_some()
         && reader::macos::permission_status() == reader::Permission::Granted
@@ -1859,6 +1863,7 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             app.manage(capture::CaptureState::new());
+            app.manage(pause::PauseState::default());
             app.manage(AgentEnv::default());
             app.manage(AutostartState::default());
             {

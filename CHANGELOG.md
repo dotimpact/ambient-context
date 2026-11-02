@@ -4,6 +4,16 @@
 
 ### Capture
 
+- **Capture can be paused for a while from the menu bar.** While
+  recording, the menu bar menu has Pause Capturing with 10 minutes, 30
+  minutes, 1 hour and 2 hours. Capture stops at once and starts again by
+  itself when the time is up. While paused the menu shows when it resumes
+  and how long is left (for example "Paused until 14:30 (25 min left)"),
+  with Resume Capturing Now to end it early and Stop Capturing to stop for
+  good. A pause is not saved to settings, so quitting or relaunching the
+  app during a pause records as usual. `capture_status` over MCP reports
+  the resume time as `paused_until`.
+
 - **More secret shapes are redacted before a line is written.** The
   password in a URL's `user:password@` part (a database connection string
   was captured in the clear), GitHub, GitLab, Slack and npm tokens, JWTs,

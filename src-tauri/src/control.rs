@@ -1,5 +1,5 @@
 use crate::ipc::{Request, Response};
-use crate::{capture, jobs, ledger, settings, tray};
+use crate::{capture, jobs, ledger, pause, settings, tray};
 use tauri::{AppHandle, Manager};
 
 /// Turns one control request into one response. Every arm runs on a socket
@@ -33,8 +33,15 @@ pub fn handle(app: &AppHandle, request: Request) -> Response {
 fn capture_status(app: &AppHandle) -> Response {
     let state = app.state::<capture::CaptureState>();
     let queue = app.state::<jobs::JobQueue>();
+    let paused_until = app
+        .state::<pause::PauseState>()
+        .until()
+        .map(|until| until.to_rfc3339());
     Response::Ok(serde_json::json!({
         "running": state.is_running(),
+        // Set while a timed pause from the menu bar is in force: capture
+        // starts again by itself at this time.
+        "paused_until": paused_until,
         "blocks_today": state.blocks_today(),
         // What the poll thread last saw, not a second accessibility walk
         // from this socket thread beside the poll thread's own.
@@ -44,6 +51,8 @@ fn capture_status(app: &AppHandle) -> Response {
 }
 
 fn start_capture(app: &AppHandle, client: &str) -> Response {
+    // A start or stop asked for by name overrides a timed pause.
+    pause::cancel(app);
     let state = app.state::<capture::CaptureState>().inner().clone();
     let mut config = settings::load(app);
     if config.folder.is_none() {
@@ -68,10 +77,14 @@ fn start_capture(app: &AppHandle, client: &str) -> Response {
 }
 
 fn stop_capture(app: &AppHandle, client: &str) -> Response {
+    // A stop asked for by name overrides a timed pause, and stopping a
+    // paused capture is a real stop: it is written down like any other.
+    let was_paused = pause::is_paused(app);
+    pause::cancel(app);
     let state = app.state::<capture::CaptureState>().inner().clone();
     let mut config = settings::load(app);
     let before = writes::hash_before(&settings::config_dir(app).join("settings.json"));
-    if state.is_running() {
+    if state.is_running() || (was_paused && config.enabled) {
         config.enabled = false;
         if let Err(error) = settings::save(app, &config) {
             return Response::err("io", error.to_string());

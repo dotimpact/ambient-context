@@ -1,7 +1,7 @@
-use crate::{capture, reader, settings};
+use crate::{capture, pause, reader, settings};
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
 };
@@ -73,10 +73,20 @@ fn build_menu(app: &AppHandle, capturing: bool) -> tauri::Result<Menu<tauri::Wry
         false,
         None::<&str>,
     )?;
+    let paused_until = app
+        .try_state::<pause::PauseState>()
+        .and_then(|state| state.until())
+        .filter(|_| !capturing);
+    // While paused the toggle stops for good (the pause is dropped) and a
+    // second item resumes early; while recording a submenu offers a pause.
     let toggle = MenuItem::with_id(
         app,
-        "toggle",
-        if capturing {
+        if paused_until.is_some() {
+            "stop_paused"
+        } else {
+            "toggle"
+        },
+        if capturing || paused_until.is_some() {
             "Stop Capturing"
         } else {
             "Start Capturing"
@@ -84,6 +94,42 @@ fn build_menu(app: &AppHandle, capturing: bool) -> tauri::Result<Menu<tauri::Wry
         true,
         None::<&str>,
     )?;
+    let pause_items: Vec<Box<dyn IsMenuItem<tauri::Wry>>> = match paused_until {
+        Some(until) => vec![
+            Box::new(MenuItem::with_id(
+                app,
+                "pause_status",
+                pause::status_label(until, chrono::Local::now()),
+                false,
+                None::<&str>,
+            )?),
+            Box::new(MenuItem::with_id(
+                app,
+                "resume",
+                "Resume Capturing Now",
+                true,
+                None::<&str>,
+            )?),
+        ],
+        None if capturing => {
+            let choices = pause::CHOICES
+                .iter()
+                .map(|(id, _, label)| MenuItem::with_id(app, *id, *label, true, None::<&str>))
+                .collect::<tauri::Result<Vec<_>>>()?;
+            let refs: Vec<&dyn IsMenuItem<tauri::Wry>> = choices
+                .iter()
+                .map(|item| item as &dyn IsMenuItem<tauri::Wry>)
+                .collect();
+            vec![Box::new(Submenu::with_id_and_items(
+                app,
+                "pause",
+                "Pause Capturing",
+                true,
+                &refs,
+            )?)]
+        }
+        None => Vec::new(),
+    };
     let last_run = {
         let text = app
             .try_state::<crate::jobs::JobState>()
@@ -116,23 +162,26 @@ fn build_menu(app: &AppHandle, capturing: bool) -> tauri::Result<Menu<tauri::Wry
     };
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
-    Menu::with_items(
-        app,
-        &[
-            &version,
-            &toggle,
-            &last_run,
-            &PredefinedMenuItem::separator(app)?,
-            &overview,
-            &reveal,
-            &PredefinedMenuItem::separator(app)?,
-            &setup,
-            &about,
-            &update,
-            &PredefinedMenuItem::separator(app)?,
-            &quit,
-        ],
-    )
+    let separators = [
+        PredefinedMenuItem::separator(app)?,
+        PredefinedMenuItem::separator(app)?,
+        PredefinedMenuItem::separator(app)?,
+    ];
+    let mut items: Vec<&dyn IsMenuItem<tauri::Wry>> = vec![&version, &toggle];
+    items.extend(pause_items.iter().map(|item| item.as_ref()));
+    items.extend([
+        &last_run as &dyn IsMenuItem<tauri::Wry>,
+        &separators[0],
+        &overview,
+        &reveal,
+        &separators[1],
+        &setup,
+        &about,
+        &update,
+        &separators[2],
+        &quit,
+    ]);
+    Menu::with_items(app, &items)
 }
 
 /// Starts or stops capture. Shared by the Start/Stop Capturing menu item
@@ -152,6 +201,8 @@ pub fn toggle_capture(app: &AppHandle) {
 
     let state = app.state::<capture::CaptureState>().inner().clone();
     let mut config = config;
+    // Starting or stopping by hand overrides a pause set earlier.
+    pause::cancel(app);
     if state.is_running() {
         capture::stop(&state);
         // An explicit stop is remembered: the app will not auto-start
@@ -167,6 +218,17 @@ pub fn toggle_capture(app: &AppHandle) {
         capture::start(app.clone(), &state, config);
         refresh(app, true);
     }
+}
+
+/// Stop Capturing while paused means stop for good: the pause is dropped
+/// so its timer cannot start capture again, and the stop is remembered the
+/// same way the toggle remembers it.
+fn stop_while_paused(app: &AppHandle) {
+    pause::cancel(app);
+    let mut config = settings::load(app);
+    config.enabled = false;
+    record_toggle(app, &config);
+    refresh(app, false);
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
@@ -186,11 +248,19 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                     }
                 }
                 "toggle" => toggle_capture(app),
+                "resume" => pause::resume_now(app),
+                "stop_paused" => stop_while_paused(app),
+                id if pause::minutes_for(id).is_some() => {
+                    if let Some(minutes) = pause::minutes_for(id) {
+                        pause::pause(app, minutes);
+                    }
+                }
                 "overview" => crate::open_main_window(app),
                 "setup" => crate::open_main_window_on_tab(app, "settings"),
                 "about" => crate::open_about_window(app),
                 "update" => crate::update::tray_action(app),
                 "quit" => {
+                    pause::cancel(app);
                     let state = app.state::<capture::CaptureState>();
                     capture::stop(&state);
                     std::thread::sleep(std::time::Duration::from_millis(300));
